@@ -1,0 +1,10 @@
+2023-11-06 21:40:25,590 - utils - INFO - Start Training, the hyperparameters are shown below:
+2023-11-06 21:40:25,591 - utils - INFO - *************************************************
+2023-11-06 21:40:25,591 - utils - INFO - --save_dir:   ./drop_05
+2023-11-06 21:40:25,591 - utils - INFO - --batch_size:   250
+2023-11-06 21:40:25,591 - utils - INFO - --day_windows:   30
+2023-11-06 21:40:25,591 - utils - INFO - --epochs:   80
+2023-11-06 21:40:25,591 - utils - INFO - --learning_rate:   1e-05
+2023-11-06 21:40:25,591 - utils - INFO - --gpu_id:   cuda:0
+2023-11-06 21:40:25,591 - utils - INFO - --drop:   0.5
+2023-11-06 21:40:25,591 - utils - INFO - =================================================================
