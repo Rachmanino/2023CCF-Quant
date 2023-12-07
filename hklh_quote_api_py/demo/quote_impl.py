@@ -25,10 +25,11 @@ class QuoteImpl(QuoteApi):
         self.kline_data = dict()
 
         ##################### 初始化策略中每只股票需要的信息 ###################
-        self.last = dict()
-        self.last_prices = dict()
-        self.cnt = dict()
+        self.last = dict()  # 记录上次买or卖
+        self.last_prices = dict() # 记录上次交易的价格，-1表示待下一分钟确定
+        self.cnt = dict() # 记录交易次数
 
+        # 数据转存，方便回测
         csv_names = os.listdir('../../../wutong/data')
         for csv_name in csv_names:
             stock_name = csv_name[:-4]
@@ -73,25 +74,24 @@ class QuoteImpl(QuoteApi):
         #####run the test data on the model 
 
         # parameters 
-        THRESHOLDS = 0.01 # ! need to be revised later
-        MAXTIME = 10000
+        THRESHOLDS = 0.01 
+        MAXTIME = 10000 # 最大连续上涨或下跌次数
         
+        # 数据预处理的参数
         scale_money = 1e9
         scale_volume = 1e6
         predict_period = 10
         
+        # 导入Model和Config
         model_save_dir = "../../Model/valid/loadmodule/model_end.pt"
         config_save_dir = "../../Model/valid/loadmodule/config.obj"
         
         # load config
         with open(config_save_dir, 'rb') as f:
-            config = pickle.load(f)     # ! using GPU
-            # print('load config successfully!')
-        # config.device = 'cpu'
+            config = pickle.load(f)    
 
         # load model
         model = torch.load(model_save_dir, map_location=config.device)
-        # print('load model successfully!')
 
         # check whether the data is enough
         self.kilne_queue(tick)
@@ -101,7 +101,7 @@ class QuoteImpl(QuoteApi):
         # load data
         data = []
         for i in range(len(self.kline_data[tick['hjcode']])):
-            code_index = 0  # TODO: edit later?
+            code_index = 0  # 我们的模型里没有用到core_index，所以这里全取0
             data.append( [  self.kline_data[tick['hjcode']][i][3],         # close_price
                             self.kline_data[tick['hjcode']][i][0],         # open_price 
                             self.kline_data[tick['hjcode']][i][1],         # high_price
@@ -125,14 +125,15 @@ class QuoteImpl(QuoteApi):
         with torch.no_grad():
             model.eval()
             preds = model(data.unsqueeze(0))[0]   
-            preds_next_time = preds[0]
-            preds_next_period = preds[1]
+            preds_next_time = preds[0]  # 预测下一分钟的涨跌幅
+            preds_next_period = preds[1]    # 预测下一时间段（10分钟）的平均涨跌幅
 
         ####################### our strategy #######################
         # 1.确定上一分钟交易的价格
         if self.last_prices[tick['hjcode']] == -1:
             self.last_prices[tick['hjcode']] = data[-1][4]
-            print(f"last f{self.last[tick['hjcode']]} price: {self.last_prices[tick['hjcode']]}")
+            # print(f"last f{self.last[tick['hjcode']]} price: {self.last_prices[tick['hjcode']]}")
+
         # 2.判断是否需要交易
         self.cnt[tick['hjcode']] += 1
         if self.last[tick['hjcode']] != 'sell' and \
@@ -154,9 +155,11 @@ class QuoteImpl(QuoteApi):
             with open('buy.txt', 'a') as f:
                 f.write(f"p-p = {preds_next_time - preds_next_period}, last = {self.last[tick['hjcode']]} buy\n")
         #############################################################
+        ''''
         print('last:', self.last[tick['hjcode']])
         print('last_prices:', self.last_prices[tick['hjcode']])
         print('cnt:', self.cnt[tick['hjcode']])
+        '''
 
     def onPublish(self,msg):
         """订阅数据推送
@@ -193,10 +196,10 @@ class QuoteImpl(QuoteApi):
         self.kline_data[kln['hjcode']].append(now_kln)
         if len(self.kline_data[kln['hjcode']]) > max_len:
             self.kline_data[kln['hjcode']].pop(0)
-        # print(self.kline_data[kln['hjcode']])
-        print('len = ', len(self.kline_data[kln['hjcode']]))
+        print(self.kline_data[kln['hjcode']])
+        # print('len = ', len(self.kline_data[kln['hjcode']]))
 
-        ######################################交易数据存到机械硬盘 @ ~/wutong/data/*.csv ######################################
+        ###################################### 交易数据转存 ######################################
         with open(f"../../../wutong/data/{kln['hjcode']}.csv", mode='a', newline='', encoding='utf8') as file:    # mode='a'表示追加
             writer = csv.writer(file)
             writer.writerow(now_kln + [kln['date'], kln['times']]) 
