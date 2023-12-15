@@ -70,7 +70,7 @@ class Stock_Dataset(Dataset):
         ###转换为百分比的涨幅
         target = target * 100
         # print('data_close', data_close)
-        return data, target
+        return data, target, data_close
 
 
 def convert_dataframe2numpy(data_path, indicator):
